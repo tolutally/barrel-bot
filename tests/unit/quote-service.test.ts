@@ -43,7 +43,7 @@ function createHarness(configs: DirectionalCorridorConfig[]) {
     expiresAt: new Date("2026-08-10T00:00:20.000Z"),
     rawResponse: {},
   }));
-  const provider: RateProvider = { getIndicativeQuote, healthCheck: async () => ({ ok: true }) };
+  const provider: RateProvider = { getIndicativeQuote, listSupportedCorridors: async () => [], healthCheck: async () => ({ ok: true }) };
   const corridors: CorridorConfigRepository = {
     findDirectional: async (source, target) =>
       configs.find((item) => item.sourceCurrency === source && item.targetCurrency === target) ?? null,

@@ -9,13 +9,17 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
-export function createQuoteService(): QuoteService {
-  const juicyway = new JuicywayProvider({
+export function createJuicywayProvider(): JuicywayProvider {
+  return new JuicywayProvider({
     baseUrl: requiredEnvironment("JUICYWAY_BASE_URL"),
     apiKey: requiredEnvironment("JUICYWAY_API_KEY"),
     quotePath: process.env.JUICYWAY_QUOTE_PATH ?? "/exchange/quote",
+    pairsPath: process.env.JUICYWAY_PAIRS_PATH ?? "/exchange/pairs",
   });
+}
 
+export function createQuoteService(): QuoteService {
+  const juicyway = createJuicywayProvider();
   return new QuoteService(
     new PrismaCorridorConfigRepository(prisma),
     new ProviderRegistry({ JUICYWAY: juicyway }),

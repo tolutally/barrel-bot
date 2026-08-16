@@ -1,7 +1,7 @@
 import { z } from "zod";
 import Decimal from "decimal.js";
 import { normalizeToSourcePerTarget } from "./rate-normalization";
-import type { ProviderQuote, RateProvider, RateRequest } from "./rate-provider";
+import type { ProviderCorridor, ProviderQuote, RateProvider, RateRequest } from "./rate-provider";
 
 const juicywayQuoteSchema = z.object({
   data: z.object({
@@ -14,6 +14,10 @@ const juicywayQuoteSchema = z.object({
     ttl: z.number().int().positive().nullable().optional(),
     type: z.enum(["buy", "sell"]).nullable().optional(),
   }),
+});
+
+const juicywayPairsSchema = z.object({
+  data: z.array(z.string().regex(/^[A-Za-z0-9]+-[A-Za-z0-9]+$/)),
 });
 
 export type JuicywayProviderConfig = {
@@ -150,11 +154,32 @@ export class JuicywayProvider implements RateProvider {
 
   async healthCheck(): Promise<{ ok: boolean; message?: string }> {
     try {
-      await this.requestJson(new URL(this.pairsPath, `${this.baseUrl}/`), 0);
+      await this.listSupportedCorridors();
       return { ok: true };
     } catch (error) {
       return { ok: false, message: error instanceof JuicywayProviderError ? error.code : "UNKNOWN_ERROR" };
     }
+  }
+
+  async listSupportedCorridors(): Promise<ProviderCorridor[]> {
+    const rawResponse = await this.requestJson(new URL(this.pairsPath, `${this.baseUrl}/`), 0);
+    const parsed = juicywayPairsSchema.safeParse(rawResponse);
+    if (!parsed.success) {
+      throw new JuicywayProviderError("INVALID_RESPONSE", "Juicyway pairs response did not match the expected schema");
+    }
+
+    const corridors = parsed.data.data.flatMap((pair) => {
+      const [sourceCurrency, targetCurrency] = pair.split("-") as [string, string];
+      const source = sourceCurrency.toUpperCase();
+      const target = targetCurrency.toUpperCase();
+      // Juicyway publishes a market symbol in one orientation but its quote
+      // endpoint accepts either funding direction for that market.
+      return [
+        { provider: "JUICYWAY", sourceCurrency: source, targetCurrency: target },
+        { provider: "JUICYWAY", sourceCurrency: target, targetCurrency: source },
+      ];
+    });
+    return [...new Map(corridors.map((item) => [`${item.sourceCurrency}-${item.targetCurrency}`, item])).values()];
   }
 
   private resolveTtlSeconds(data: z.infer<typeof juicywayQuoteSchema>["data"]): number {

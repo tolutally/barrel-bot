@@ -26,6 +26,23 @@ export type ConversationDetailResponse = {
   messagePage: { limit: number; hasMore: boolean; nextBefore: string | null };
 };
 export type SendMessageResponse = { status: "sent"; idempotent: boolean; sentAt: string };
+export type ProviderCorridorsResponse = {
+  asOf: string;
+  providers: Array<{ id: string; name: string; status: "AVAILABLE" | "UNAVAILABLE" }>;
+  corridors: Array<{ sourceCurrency: string; targetCurrency: string; providers: Record<string, { available: boolean }> }>;
+};
+export type ProviderRateResponse = {
+  provider: "JUICYWAY";
+  sourceCurrency: string;
+  targetCurrency: string;
+  targetPerSourceRate: string;
+  sourcePerTargetRate: string;
+  displayRate: string;
+  rawSymbol: string | null;
+  indicative: true;
+  expiresAt: string;
+  fetchedAt: string;
+};
 
 function apiUrl(path: string): URL {
   const base = process.env.BARREL_API_URL;
@@ -44,6 +61,10 @@ export class BarrelInternalApiClient {
     return this.request(`/api/internal/conversations${query.size ? `?${query}` : ""}`);
   }
   getConversation(conversationId: string): Promise<ConversationDetailResponse> { return this.request(`/api/internal/conversations/${encodeURIComponent(conversationId)}`); }
+  listProviderCorridors(): Promise<ProviderCorridorsResponse> { return this.request("/api/internal/providers/corridors"); }
+  getProviderRate(sourceCurrency: string, targetCurrency: string): Promise<ProviderRateResponse> {
+    return this.request(`/api/internal/providers/corridors/${encodeURIComponent(sourceCurrency)}/${encodeURIComponent(targetCurrency)}/rate`);
+  }
   sendMessage(conversationId: string, text: string, idempotencyKey: string): Promise<SendMessageResponse> {
     return this.request(`/api/internal/conversations/${encodeURIComponent(conversationId)}/messages`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ text }) });
   }

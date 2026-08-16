@@ -14,6 +14,7 @@ afterAll(async () => {
 describe("QuoteService Supabase persistence", () => {
   it("runs provider -> pricing -> snapshot -> customer-safe quote end to end", async () => {
     const fixtureProvider: RateProvider = {
+      listSupportedCorridors: async () => [],
       getIndicativeQuote: async (request) => ({
         provider: "JUICYWAY",
         providerQuoteId: "fixture-provider-quote",

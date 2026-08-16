@@ -1,6 +1,6 @@
 # Railway deployment
 
-Deploy this shared npm-workspace monorepo as two Railway services from the repository root. Do not set a Railway Root Directory: both applications rely on root workspace packages.
+Deploy the API from the repository root because it consumes shared workspace packages. Deploy Ops with `apps/ops` as its service root; Ops is self-contained.
 
 ## API service
 
@@ -13,6 +13,7 @@ Set the server-only values from `.env.example`, including the database URL, Supa
 
 ## Ops service
 
+- Root directory: `/apps/ops`
 - Config file path: `/apps/ops/railway.toml`
 - Public domain: required for staff access and iPhone notifications.
 - Health check: `/api/health`

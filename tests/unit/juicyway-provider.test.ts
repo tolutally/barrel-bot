@@ -21,6 +21,32 @@ function jsonResponse(body: unknown, status = 200, headers?: HeadersInit): Respo
 }
 
 describe("JuicywayProvider", () => {
+  it("lists real provider directions without converting them into quotes", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: ["cad-ngn", "USDT-NGN", "USD-CAD"] }));
+    const provider = new JuicywayProvider(
+      { baseUrl: "https://api-sandbox.spendjuice.com", apiKey: "test-secret" },
+      { fetch: fetchMock },
+    );
+
+    await expect(provider.listSupportedCorridors()).resolves.toEqual([
+      { provider: "JUICYWAY", sourceCurrency: "CAD", targetCurrency: "NGN" },
+      { provider: "JUICYWAY", sourceCurrency: "NGN", targetCurrency: "CAD" },
+      { provider: "JUICYWAY", sourceCurrency: "USDT", targetCurrency: "NGN" },
+      { provider: "JUICYWAY", sourceCurrency: "NGN", targetCurrency: "USDT" },
+      { provider: "JUICYWAY", sourceCurrency: "USD", targetCurrency: "CAD" },
+      { provider: "JUICYWAY", sourceCurrency: "CAD", targetCurrency: "USD" },
+    ]);
+    expect(fetchMock.mock.calls[0]?.[0].toString()).toBe("https://api-sandbox.spendjuice.com/exchange/pairs");
+  });
+
+  it("rejects a malformed provider pairs response", async () => {
+    const provider = new JuicywayProvider(
+      { baseUrl: "https://api-sandbox.spendjuice.com", apiKey: "test-secret" },
+      { fetch: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: ["not-a-pair"] })) },
+    );
+    await expect(provider.listSupportedCorridors()).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
   it("requests a generic unlocked quote and normalizes it", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(quoteBody));
     const provider = new JuicywayProvider(
