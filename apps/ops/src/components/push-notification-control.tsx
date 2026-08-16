@@ -1,0 +1,75 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type ControlState = "checking" | "unsupported" | "unavailable" | "disabled" | "enabled" | "blocked" | "error";
+
+function vapidKeyBytes(value: string): ArrayBuffer {
+  const padded = `${value}${"=".repeat((4 - value.length % 4) % 4)}`.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = window.atob(padded);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
+async function saveSubscription(subscription: PushSubscription): Promise<void> {
+  const response = await fetch("/api/push-subscriptions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(subscription.toJSON()),
+  });
+  if (!response.ok) throw new Error("Unable to save notification preference");
+}
+
+export function PushNotificationControl() {
+  const publicKey = process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY;
+  const [state, setState] = useState<ControlState>("checking");
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      setState("unsupported");
+      return;
+    }
+    if (!publicKey) {
+      setState("unavailable");
+      return;
+    }
+    if (Notification.permission === "denied") {
+      setState("blocked");
+      return;
+    }
+    navigator.serviceWorker.register("/service-worker.js", { scope: "/" })
+      .then(async (registration) => {
+        const existing = await registration.pushManager.getSubscription();
+        if (existing) {
+          await saveSubscription(existing);
+          setState("enabled");
+        } else setState("disabled");
+      })
+      .catch(() => setState("error"));
+  }, [publicKey]);
+
+  const enable = async () => {
+    if (!publicKey) return;
+    try {
+      setState("checking");
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setState(permission === "denied" ? "blocked" : "disabled");
+        return;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKeyBytes(publicKey) });
+      await saveSubscription(subscription);
+      setState("enabled");
+    } catch {
+      setState("error");
+    }
+  };
+
+  if (state === "checking") return <span className="push-status">Checking alerts…</span>;
+  if (state === "enabled") return <span className="push-status push-status--enabled">Alerts on</span>;
+  if (state === "unsupported") return <span className="push-status">Alerts unavailable in this browser</span>;
+  if (state === "unavailable") return null;
+  if (state === "blocked") return <span className="push-status">Allow notifications in iPhone Settings to enable alerts.</span>;
+  return <button className="push-control" onClick={enable}>{state === "error" ? "Try alerts again" : "Enable alerts"}</button>;
+}

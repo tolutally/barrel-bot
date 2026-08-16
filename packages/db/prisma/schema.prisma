@@ -1,0 +1,811 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CustomerType {
+  BUSINESS
+  INDIVIDUAL
+}
+
+enum CustomerStatus {
+  PROSPECT
+  ONBOARDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+  REJECTED
+}
+
+enum ComplianceStatus {
+  NOT_STARTED
+  INVITED
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_INFORMATION
+  APPROVED
+  REVIEW_DUE
+  REJECTED
+}
+
+enum RiskLevel {
+  UNASSESSED
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RepresentativeStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+enum ChannelType {
+  WHATSAPP
+  EMAIL
+  WEB
+}
+
+enum ConversationState {
+  IDLE
+  CHOOSING_SOURCE_CURRENCY
+  CHOOSING_TARGET_CURRENCY
+  AWAITING_AMOUNT
+  QUOTE_PRESENTED
+  TRADE_INTENT_CREATED
+  AWAITING_CUSTOMER_TYPE
+  CUSTOMER_TYPE_SELECTED
+  AWAITING_PAYMENT_PURPOSE
+  AWAITING_PAYMENT_PURPOSE_DETAIL
+  TRADE_REQUEST_READY
+  IDENTIFYING_CUSTOMER
+  ONBOARDING_REQUIRED
+  TRADE_READY
+  OPTED_OUT
+}
+
+enum SpreadMode {
+  FIXED
+  PERCENTAGE
+  HYBRID
+}
+
+enum QuoteStatus {
+  INDICATIVE
+  EXPIRED
+  TRADE_INTENT_CREATED
+  CANCELLED
+}
+
+enum TradeIntentStatus {
+  CREATED
+  CUSTOMER_TYPE_REQUIRED
+  CUSTOMER_IDENTIFICATION_REQUIRED
+  ONBOARDING_REQUIRED
+  AWAITING_COMPLIANCE
+  READY_FOR_FRESH_QUOTE
+  CONVERTED_TO_TRADE
+  CANCELLED
+  EXPIRED
+  PAYMENT_PURPOSE_REQUIRED
+  READY_FOR_HANDOFF
+}
+
+enum PaymentPurpose {
+  SUPPLIER_VENDOR
+  GOODS_INVENTORY
+  SERVICES_CONTRACTOR
+  INVESTMENT
+  PERSONAL_TRANSFER
+  OTHER
+}
+
+enum TradeHandoffState {
+  NOT_REQUESTED
+  ALERT_PENDING
+  ALERT_SENT
+  HANDED_OFF
+  FAILED
+  CLOSED
+}
+
+enum ConversationAutomationMode {
+  BOT
+  HANDOFF_PENDING
+  HUMAN
+}
+
+enum OperatorRole {
+  ADMIN
+  OPERATOR
+}
+
+enum OperatorStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ConversationMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum ConversationMessageSenderType {
+  CUSTOMER
+  BOT
+  OPERATOR
+  SYSTEM
+}
+
+enum ConversationMessageChannel {
+  WHATSAPP
+}
+
+enum ConversationMessageContentType {
+  TEXT
+  INTERACTIVE
+  IMAGE
+  DOCUMENT
+  OTHER
+}
+
+enum AdminNotificationType {
+  NEW_TRADE_REQUEST
+}
+
+enum AdminNotificationChannel {
+  WHATSAPP
+}
+
+enum AdminNotificationStatus {
+  PENDING
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WhatsAppRelayDirection {
+  ADMIN_TO_CUSTOMER
+  CUSTOMER_TO_ADMIN
+}
+
+enum WhatsAppRelayStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+enum TradeStatus {
+  DRAFT
+  AWAITING_COMPLIANCE
+  READY_TO_SUBMIT
+  SUBMITTED
+  OPS_REVIEW
+  ACCEPTED
+  COMPLETED
+  CANCELLED
+  REJECTED
+  EXPIRED
+}
+
+enum ComplianceCaseType {
+  INDIVIDUAL_KYC
+  BUSINESS_KYB
+  PERIODIC_REVIEW
+  REMEDIATION
+}
+
+enum ComplianceCaseStatus {
+  INVITED
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_INFORMATION
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ComplianceDocumentStatus {
+  UPLOADED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+  DELETED
+}
+
+enum ComplianceDecision {
+  APPROVE
+  REJECT
+  REQUEST_INFORMATION
+  ESCALATE
+}
+
+enum AuditActorType {
+  SYSTEM
+  CUSTOMER
+  STAFF
+  SERVICE
+}
+
+enum AuditSource {
+  SYSTEM
+  API
+  WHATSAPP
+  WEB
+  APPSMITH
+  CUSTOM_ADMIN
+}
+
+model Customer {
+  id               String           @id @default(cuid())
+  customerNumber   String           @unique
+  customerType     CustomerType
+  customerStatus   CustomerStatus   @default(PROSPECT)
+  complianceStatus ComplianceStatus @default(NOT_STARTED)
+  riskLevel        RiskLevel        @default(UNASSESSED)
+  approvedAt       DateTime?
+  nextReviewAt     DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  individualProfile   IndividualProfile?
+  businessProfile     BusinessProfile?
+  channels            CustomerChannel[]
+  conversations       Conversation[]
+  quotes              Quote[]
+  tradeIntents        TradeIntent[]
+  trades              Trade[]
+  complianceCases     ComplianceCase[]
+  complianceDocuments ComplianceDocument[]
+
+  @@index([customerType, customerStatus, complianceStatus])
+}
+
+model IndividualProfile {
+  id                 String    @id @default(cuid())
+  customerId         String    @unique
+  firstName          String
+  lastName           String
+  dateOfBirth        DateTime? @db.Date
+  phone              String?
+  email              String?
+  residentialAddress Json?
+  occupation         String?
+  country            String
+  residencyCountry   String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+}
+
+model BusinessProfile {
+  id                 String   @id @default(cuid())
+  customerId         String   @unique
+  legalName          String
+  tradingName        String?
+  entityType         String
+  registrationNumber String?
+  jurisdiction       String
+  country            String
+  registeredAddress  Json?
+  operatingAddress   Json?
+  website            String?
+  natureOfBusiness   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  customer                  Customer                   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contacts                  BusinessContact[]
+  authorizedRepresentatives AuthorizedRepresentative[]
+  directors                 Director[]
+  beneficialOwners          BeneficialOwner[]
+
+  @@index([registrationNumber, jurisdiction])
+}
+
+model BusinessContact {
+  id                String    @id @default(cuid())
+  businessProfileId String
+  firstName         String
+  lastName          String
+  email             String?
+  phone             String?
+  jobTitle          String?
+  isPrimary         Boolean   @default(false)
+  emailVerifiedAt   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  businessProfile          BusinessProfile           @relation(fields: [businessProfileId], references: [id], onDelete: Restrict)
+  channels                 CustomerChannel[]
+  authorizedRepresentative AuthorizedRepresentative?
+
+  @@index([businessProfileId, isPrimary])
+  @@index([email])
+}
+
+model AuthorizedRepresentative {
+  id                String               @id @default(cuid())
+  businessProfileId String
+  businessContactId String?              @unique
+  firstName         String
+  lastName          String
+  email             String?
+  phone             String?
+  jobTitle          String?
+  canRequestQuotes  Boolean              @default(false)
+  canSubmitTrades   Boolean              @default(false)
+  canConfirmTrades  Boolean              @default(false)
+  status            RepresentativeStatus @default(PENDING)
+  verifiedAt        DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  businessProfile BusinessProfile   @relation(fields: [businessProfileId], references: [id], onDelete: Restrict)
+  businessContact BusinessContact?  @relation(fields: [businessContactId], references: [id], onDelete: SetNull)
+  channels        CustomerChannel[]
+  submittedTrades Trade[]
+
+  @@index([businessProfileId, status])
+}
+
+model CustomerChannel {
+  id                         String      @id @default(cuid())
+  customerId                 String?
+  businessContactId          String?
+  authorizedRepresentativeId String?
+  channelType                ChannelType
+  externalIdentifier         String
+  verifiedAt                 DateTime?
+  metadata                   Json?
+  createdAt                  DateTime    @default(now())
+  updatedAt                  DateTime    @updatedAt
+
+  customer                 Customer?                 @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  businessContact          BusinessContact?          @relation(fields: [businessContactId], references: [id], onDelete: SetNull)
+  authorizedRepresentative AuthorizedRepresentative? @relation(fields: [authorizedRepresentativeId], references: [id], onDelete: SetNull)
+  conversations            Conversation[]
+
+  @@unique([channelType, externalIdentifier])
+  @@index([customerId, channelType])
+}
+
+model Conversation {
+  id                     String                     @id @default(cuid())
+  customerChannelId      String?
+  customerId             String?
+  state                  ConversationState          @default(IDLE)
+  automationMode         ConversationAutomationMode @default(BOT)
+  latestQuoteId          String?                    @unique
+  latestTradeIntentId    String?                    @unique
+  selectedSourceCurrency String?
+  selectedTargetCurrency String?
+  optedOutAt             DateTime?
+  lastInboundAt          DateTime?
+  handoffRequestedAt     DateTime?
+  handoffStartedAt       DateTime?
+  handoffClosedAt        DateTime?
+  handoffClosedBy        String?
+  lastOperatorActivityAt DateTime?
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+
+  customerChannel   CustomerChannel? @relation(fields: [customerChannelId], references: [id], onDelete: SetNull)
+  customer          Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  latestQuote       Quote?           @relation("LatestConversationQuote", fields: [latestQuoteId], references: [id], onDelete: SetNull)
+  latestTradeIntent TradeIntent?     @relation("LatestConversationTradeIntent", fields: [latestTradeIntentId], references: [id], onDelete: SetNull)
+  quotes            Quote[]          @relation("ConversationQuotes")
+  tradeIntents      TradeIntent[]    @relation("ConversationTradeIntents")
+  messages          ConversationMessage[]
+
+  @@unique([customerChannelId])
+  @@index([customerChannelId, updatedAt])
+  @@index([customerId])
+}
+
+model Operator {
+  id         String         @id @default(cuid())
+  authUserId String         @unique @db.Uuid
+  email      String         @unique
+  displayName String?
+  role       OperatorRole   @default(OPERATOR)
+  status     OperatorStatus @default(ACTIVE)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  messages ConversationMessage[]
+  pushSubscriptions OperatorPushSubscription[]
+
+  @@index([status])
+}
+
+model OperatorPushSubscription {
+  id        String   @id @default(cuid())
+  operatorId String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastUsedAt DateTime?
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId])
+}
+
+model ConversationMessage {
+  id                       String                         @id @default(cuid())
+  conversationId           String
+  direction                ConversationMessageDirection
+  senderType               ConversationMessageSenderType
+  channel                  ConversationMessageChannel     @default(WHATSAPP)
+  contentType              ConversationMessageContentType
+  textBody                 String?
+  externalMessageId        String?                        @unique
+  idempotencyKey           String?
+  replyToExternalMessageId String?
+  operatorId               String?
+  sentAt                   DateTime?
+  deliveredAt              DateTime?
+  readAt                   DateTime?
+  failedAt                 DateTime?
+  failureCode              String?
+  failureMessage           String?
+  metadata                 Json?
+  createdAt                DateTime                       @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  operator     Operator?    @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@unique([conversationId, idempotencyKey])
+  @@index([operatorId])
+}
+
+model CorridorConfig {
+  id                       String     @id @default(cuid())
+  sourceCurrency           String
+  targetCurrency           String
+  provider                 String
+  enabled                  Boolean    @default(true)
+  spreadMode               SpreadMode @default(FIXED)
+  fixedSpread              Decimal    @db.Decimal(24, 8)
+  percentageSpread         Decimal    @db.Decimal(12, 8)
+  minSourceAmountMinor     BigInt
+  maxSourceAmountMinor     BigInt
+  explicitSourceFeeMinor   BigInt     @default(0)
+  providerFeeEstimateMinor BigInt     @default(0)
+  payoutFeeEstimateMinor   BigInt     @default(0)
+  quoteTtlSeconds          Int        @default(30)
+  targetPrecision          Int        @default(2)
+  customerDisclaimer       String
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
+
+  @@unique([sourceCurrency, targetCurrency])
+}
+
+model Quote {
+  id                       String      @id @default(cuid())
+  quoteReference           String      @unique
+  customerId               String?
+  conversationId           String?
+  provider                 String
+  providerQuoteId          String?
+  sourceCurrency           String
+  targetCurrency           String
+  sourceAmountMinor        BigInt
+  targetAmountMinor        BigInt
+  providerRate             Decimal     @db.Decimal(24, 10)
+  customerRate             Decimal     @db.Decimal(24, 10)
+  fixedSpreadSnapshot      Decimal     @db.Decimal(24, 10)
+  percentageSpreadSnapshot Decimal     @db.Decimal(12, 8)
+  explicitFeeMinor         BigInt
+  providerFeeEstimateMinor BigInt
+  payoutFeeEstimateMinor   BigInt      @default(0)
+  expectedMarginMinor      BigInt
+  providerLocked           Boolean     @default(false)
+  providerExpiresAt        DateTime
+  customerQuoteExpiresAt   DateTime
+  status                   QuoteStatus @default(INDICATIVE)
+  rawProviderResponse      Json?
+  createdAt                DateTime    @default(now())
+
+  customer              Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  conversation          Conversation? @relation("ConversationQuotes", fields: [conversationId], references: [id], onDelete: SetNull)
+  latestForConversation Conversation? @relation("LatestConversationQuote")
+  tradeIntents          TradeIntent[]
+  trades                Trade[]
+
+  @@index([customerId, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([status, customerQuoteExpiresAt])
+}
+
+model TradeIntent {
+  id                          String            @id @default(cuid())
+  tradeIntentReference        String            @unique
+  publicReference             String            @unique
+  quoteId                     String?
+  customerId                  String?
+  customerType                CustomerType?
+  conversationId              String?
+  sourceCurrency              String?
+  targetCurrency              String?
+  sourceAmountMinor           BigInt?
+  indicativeTargetAmountMinor BigInt?
+  originatingChannel          ChannelType
+  status                      TradeIntentStatus @default(CREATED)
+  purposeOfPayment            PaymentPurpose?
+  purposeOfPaymentDetail      String?
+  contactWhatsAppNumber       String?
+  contactName                 String?
+  idempotencyKey              String?           @unique
+  idempotencyRequestHash      String?
+  handoffState                TradeHandoffState @default(NOT_REQUESTED)
+  handoffRequestedAt          DateTime?
+  alertSentAt                 DateTime?
+  handedOffAt                 DateTime?
+  handoffClosedAt             DateTime?
+  handoffClosedBy             String?
+  assignedAdminRecipient      String?
+  assignedAt                  DateTime?
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+
+  quote                 Quote?                 @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  customer              Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  conversation          Conversation?          @relation("ConversationTradeIntents", fields: [conversationId], references: [id], onDelete: SetNull)
+  latestForConversation Conversation?          @relation("LatestConversationTradeIntent")
+  trades                Trade[]
+  adminNotifications    AdminNotification[]
+  whatsappRelayMessages WhatsAppRelayMessage[]
+
+  @@unique([conversationId, quoteId])
+  @@index([quoteId])
+  @@index([customerId, status])
+  @@index([conversationId, createdAt])
+  @@index([originatingChannel, createdAt])
+}
+
+model AdminNotification {
+  id                 String                   @id @default(cuid())
+  tradeIntentId      String
+  notificationType   AdminNotificationType
+  channel            AdminNotificationChannel
+  recipient          String
+  status             AdminNotificationStatus  @default(PENDING)
+  attemptCount       Int                      @default(0)
+  externalMessageId  String?
+  lastAttemptAt      DateTime?
+  sentAt             DateTime?
+  deliveredAt        DateTime?
+  readAt             DateTime?
+  safeFailureCode    String?
+  safeFailureMessage String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  tradeIntent   TradeIntent            @relation(fields: [tradeIntentId], references: [id], onDelete: Restrict)
+  relayMessages WhatsAppRelayMessage[]
+
+  @@unique([tradeIntentId, recipient, notificationType])
+  @@index([status, createdAt])
+  @@index([tradeIntentId])
+}
+
+model WhatsAppRelayMessage {
+  id                         String                 @id @default(cuid())
+  tradeIntentId              String
+  adminNotificationId        String?
+  direction                  WhatsAppRelayDirection
+  status                     WhatsAppRelayStatus    @default(PENDING)
+  sender                     String
+  recipient                  String
+  body                       String
+  inboundExternalMessageId   String
+  inReplyToExternalMessageId String?
+  outboundExternalMessageId  String?                @unique
+  attemptCount               Int                    @default(0)
+  sentAt                     DateTime?
+  safeFailureCode            String?
+  safeFailureMessage         String?
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+
+  tradeIntent       TradeIntent        @relation(fields: [tradeIntentId], references: [id], onDelete: Restrict)
+  adminNotification AdminNotification? @relation(fields: [adminNotificationId], references: [id], onDelete: SetNull)
+
+  @@unique([inboundExternalMessageId, direction, recipient])
+  @@index([tradeIntentId, createdAt])
+  @@index([status, createdAt])
+  @@index([inReplyToExternalMessageId])
+}
+
+model Trade {
+  id                          String      @id @default(cuid())
+  tradeReference              String      @unique
+  customerId                  String
+  submittedByRepresentativeId String?
+  tradeIntentId               String?
+  quoteId                     String
+  sourceCurrency              String
+  targetCurrency              String
+  sourceAmountMinor           BigInt
+  targetAmountMinor           BigInt
+  providerRateSnapshot        Decimal     @db.Decimal(24, 10)
+  customerRateSnapshot        Decimal     @db.Decimal(24, 10)
+  fixedSpreadSnapshot         Decimal     @db.Decimal(24, 10)
+  percentageSpreadSnapshot    Decimal     @db.Decimal(12, 8)
+  purpose                     String?
+  sourceOfFunds               String?
+  customerReference           String?
+  status                      TradeStatus @default(DRAFT)
+  submittedAt                 DateTime?
+  acceptedAt                  DateTime?
+  completedAt                 DateTime?
+  cancelledAt                 DateTime?
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
+
+  customer                  Customer                  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  submittedByRepresentative AuthorizedRepresentative? @relation(fields: [submittedByRepresentativeId], references: [id], onDelete: SetNull)
+  tradeIntent               TradeIntent?              @relation(fields: [tradeIntentId], references: [id], onDelete: SetNull)
+  quote                     Quote                     @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, status])
+  @@index([tradeIntentId])
+  @@index([quoteId])
+}
+
+model ComplianceCase {
+  id              String               @id @default(cuid())
+  customerId      String
+  caseReference   String               @unique
+  caseType        ComplianceCaseType
+  status          ComplianceCaseStatus @default(INVITED)
+  riskLevel       RiskLevel            @default(UNASSESSED)
+  submittedAt     DateTime?
+  reviewStartedAt DateTime?
+  decidedAt       DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  nextReviewAt    DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  customer          Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  directors         Director[]
+  beneficialOwners  BeneficialOwner[]
+  documents         ComplianceDocument[]
+  complianceReviews ComplianceReview[]
+
+  @@index([customerId, createdAt])
+  @@index([status, nextReviewAt])
+}
+
+model Director {
+  id                String    @id @default(cuid())
+  businessProfileId String
+  complianceCaseId  String
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime? @db.Date
+  nationality       String?
+  country           String?
+  jobTitle          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Restrict)
+  complianceCase  ComplianceCase  @relation(fields: [complianceCaseId], references: [id], onDelete: Restrict)
+
+  @@index([businessProfileId])
+  @@index([complianceCaseId])
+}
+
+model BeneficialOwner {
+  id                  String    @id @default(cuid())
+  businessProfileId   String
+  complianceCaseId    String
+  firstName           String
+  lastName            String
+  ownershipPercentage Decimal?  @db.Decimal(5, 2)
+  controlType         String?
+  dateOfBirth         DateTime? @db.Date
+  nationality         String?
+  country             String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Restrict)
+  complianceCase  ComplianceCase  @relation(fields: [complianceCaseId], references: [id], onDelete: Restrict)
+
+  @@index([businessProfileId])
+  @@index([complianceCaseId])
+}
+
+model ComplianceDocument {
+  id               String                   @id @default(cuid())
+  complianceCaseId String
+  customerId       String
+  documentType     String
+  storageProvider  String                   @default("SUPABASE")
+  storageKey       String                   @unique
+  originalFilename String
+  mimeType         String
+  sizeBytes        BigInt
+  sha256Hash       String
+  status           ComplianceDocumentStatus @default(UPLOADED)
+  uploadedAt       DateTime                 @default(now())
+  reviewedAt       DateTime?
+  reviewedBy       String?
+  retentionUntil   DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  complianceCase ComplianceCase @relation(fields: [complianceCaseId], references: [id], onDelete: Restrict)
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([complianceCaseId, status])
+  @@index([customerId, createdAt])
+  @@index([sha256Hash])
+}
+
+model ComplianceReview {
+  id               String             @id @default(cuid())
+  complianceCaseId String
+  reviewerIdentity String
+  decision         ComplianceDecision
+  reason           String
+  notes            String?
+  createdAt        DateTime           @default(now())
+
+  complianceCase ComplianceCase @relation(fields: [complianceCaseId], references: [id], onDelete: Restrict)
+
+  @@index([complianceCaseId, createdAt])
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  externalId  String
+  eventType   String
+  payloadHash String
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([provider, externalId])
+}
+
+model AuditLog {
+  id            String         @id @default(cuid())
+  actorType     AuditActorType
+  actorId       String?
+  actorEmail    String?
+  action        String
+  entityType    String
+  entityId      String
+  before        Json?
+  after         Json?
+  source        AuditSource
+  correlationId String?
+  createdAt     DateTime       @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([correlationId])
+}

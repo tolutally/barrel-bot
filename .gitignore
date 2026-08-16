@@ -1,0 +1,27 @@
+# Dependencies
+/node_modules
+
+# Next.js
+**/.next
+/out
+
+# Tests
+/coverage
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and local tooling
+*.log
+.DS_Store
+.vercel
+
+# Prisma local databases
+*.db
+*.db-journal
+
+# TypeScript
+*.tsbuildinfo
+**/next-env.d.ts

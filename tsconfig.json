@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@barrel/db": ["packages/db/src/index.ts"],
+      "@barrel/domain": ["packages/domain/src/index.ts"],
+      "@barrel/pricing": ["packages/pricing/src/index.ts"],
+      "@barrel/providers": ["packages/providers/src/index.ts"],
+      "@barrel/quotes": ["packages/quotes/src/index.ts"],
+      "@barrel/shared": ["packages/shared/src/index.ts"],
+      "@barrel/storage": ["packages/storage/src/index.ts"]
+      ,"@barrel/whatsapp": ["packages/whatsapp/src/index.ts"]
+      ,"@barrel/trade-intents": ["packages/trade-intents/src/index.ts"]
+      ,"@barrel/handoffs": ["packages/handoffs/src/index.ts"]
+      ,"@barrel/public-api": ["packages/public-api/src/index.ts"]
+    }
+  },
+  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,6 @@
+ALTER TYPE "AdminNotificationStatus" ADD VALUE IF NOT EXISTS 'DELIVERED';
+ALTER TYPE "AdminNotificationStatus" ADD VALUE IF NOT EXISTS 'READ';
+
+ALTER TABLE "AdminNotification"
+  ADD COLUMN "deliveredAt" TIMESTAMP(3),
+  ADD COLUMN "readAt" TIMESTAMP(3);

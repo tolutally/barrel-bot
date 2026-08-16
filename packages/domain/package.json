@@ -1,0 +1,11 @@
+{
+  "name": "@barrel/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@barrel/shared": "*",
+    "zod": "^3.0.0"
+  }
+}

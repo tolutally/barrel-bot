@@ -1,0 +1,11 @@
+{
+  "name": "@barrel/trade-intents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@barrel/domain": "*",
+    "@prisma/client": "^6.0.0"
+  }
+}

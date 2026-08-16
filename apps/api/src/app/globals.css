@@ -1,0 +1,9 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f6f7f4;
+  color: #172018;
+}
+
+body { margin: 0; }
+main { max-width: 48rem; margin: 8rem auto; padding: 2rem; }
