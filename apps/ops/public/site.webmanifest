@@ -1,7 +1,8 @@
 {
   "name": "Barrel Ops",
   "short_name": "Barrel Ops",
-  "start_url": "/login",
+  "id": "/dashboard",
+  "start_url": "/dashboard",
   "scope": "/",
   "icons": [
     {
@@ -19,5 +20,6 @@
   ],
   "theme_color": "#153425",
   "background_color": "#153425",
-  "display": "standalone"
+  "display": "standalone",
+  "orientation": "portrait"
 }

@@ -36,23 +36,27 @@ export async function removeOperatorPushSubscription(operatorId: string, endpoin
   await prisma.operatorPushSubscription.deleteMany({ where: { operatorId, endpoint } });
 }
 
-export async function notifyOperatorsOfInboundMessage(conversationId: string): Promise<void> {
+type PushPayload = { title: string; body: string; url: string; tag: string; timestamp: number };
+
+async function deliverPushNotifications(
+  where: { operatorId?: string; operator: { status: "ACTIVE" } },
+  payload: PushPayload,
+): Promise<number> {
   const pushConfig = config();
-  if (!pushConfig) return;
+  if (!pushConfig) return 0;
   configureWebPush(pushConfig);
   const subscriptions = await prisma.operatorPushSubscription.findMany({
-    where: { operator: { status: "ACTIVE" } },
+    where,
     select: { id: true, endpoint: true, p256dh: true, auth: true },
   });
-  const payload = JSON.stringify({
-    title: "Barrel Ops",
-    body: "New customer message",
-    url: `/inbox/${conversationId}`,
-    tag: `barrel-inbound-${conversationId}`,
-  });
+  let delivered = 0;
   await Promise.all(subscriptions.map(async (subscription) => {
     try {
-      await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, payload);
+      await webpush.sendNotification(
+        { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
+        JSON.stringify(payload),
+      );
+      delivered += 1;
       await prisma.operatorPushSubscription.update({ where: { id: subscription.id }, data: { lastUsedAt: new Date() } });
     } catch (error: unknown) {
       const statusCode = typeof error === "object" && error != null && "statusCode" in error
@@ -64,4 +68,28 @@ export async function notifyOperatorsOfInboundMessage(conversationId: string): P
       console.error({ event: "ops_push_delivery_failed", statusCode: statusCode ?? "unknown" });
     }
   }));
+  return delivered;
+}
+
+export function sendOperatorTestNotification(operatorId: string): Promise<number> {
+  return deliverPushNotifications(
+    { operatorId, operator: { status: "ACTIVE" } },
+    {
+      title: "Barrel alerts are working",
+      body: "You’ll be notified here when a customer needs the team.",
+      url: "/inbox",
+      tag: `barrel-test-${operatorId}`,
+      timestamp: Date.now(),
+    },
+  );
+}
+
+export async function notifyOperatorsOfInboundMessage(conversationId: string): Promise<void> {
+  await deliverPushNotifications({ operator: { status: "ACTIVE" } }, {
+    title: "New Barrel customer message",
+    body: "Open Barrel Ops to view and reply.",
+    url: `/inbox/${conversationId}`,
+    tag: `barrel-inbound-${conversationId}`,
+    timestamp: Date.now(),
+  });
 }

@@ -13,7 +13,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@barrel/db", () => ({ prisma }));
 vi.mock("web-push", () => ({ default: webpush }));
 
-import { notifyOperatorsOfInboundMessage, saveOperatorPushSubscription } from "../../apps/api/src/lib/push-notifications";
+import { notifyOperatorsOfInboundMessage, saveOperatorPushSubscription, sendOperatorTestNotification } from "../../apps/api/src/lib/push-notifications";
 
 const originalEnvironment = { ...process.env };
 
@@ -56,11 +56,26 @@ describe("Ops push notifications", () => {
     expect(webpush.setVapidDetails).toHaveBeenCalledWith("mailto:ops@barrel.test", "public-key", "private-key");
     expect(webpush.sendNotification).toHaveBeenCalledWith(
       expect.objectContaining({ endpoint: "https://push.example/active" }),
-      expect.stringContaining('"body":"New customer message"'),
+      expect.stringContaining('"body":"Open Barrel Ops to view and reply."'),
     );
     const payload = JSON.parse(webpush.sendNotification.mock.calls[0]![1] as string);
     expect(payload).toEqual(expect.objectContaining({ url: "/inbox/conversation-internal-id" }));
     expect(JSON.stringify(payload)).not.toMatch(/phone|whatsapp|\+1\d{3}/i);
     expect(prisma.operatorPushSubscription.delete).toHaveBeenCalledWith({ where: { id: "expired" } });
+  });
+
+  it("sends a test alert only to the authenticated operator's devices", async () => {
+    prisma.operatorPushSubscription.findMany.mockResolvedValue([
+      { id: "device", endpoint: "https://push.example/device", p256dh: "key", auth: "auth" },
+    ]);
+    webpush.sendNotification.mockResolvedValue(undefined);
+
+    await expect(sendOperatorTestNotification("operator-1")).resolves.toBe(1);
+
+    expect(prisma.operatorPushSubscription.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { operatorId: "operator-1", operator: { status: "ACTIVE" } },
+    }));
+    const payload = JSON.parse(webpush.sendNotification.mock.calls[0]![1] as string);
+    expect(payload).toEqual(expect.objectContaining({ title: "Barrel alerts are working", url: "/inbox" }));
   });
 });

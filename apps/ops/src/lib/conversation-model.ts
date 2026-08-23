@@ -15,10 +15,17 @@ export function timestamp(value: string): string {
 }
 
 export function rateLabel(quote: NonNullable<ConversationDetailResponse["conversation"]["quote"]>): string {
-  const symbols: Record<string, string> = { NGN: "₦", CAD: "C$", USD: "US$", GBP: "£", EUR: "€", USDT: "USDT " };
-  const numericRate = Number(quote.indicativeCustomerRate);
-  const rate = Number.isFinite(numericRate)
-    ? new Intl.NumberFormat("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(numericRate)
-    : quote.indicativeCustomerRate;
-  return `${symbols[quote.targetCurrency] ?? `${quote.targetCurrency} `}1 = ${symbols[quote.sourceCurrency] ?? `${quote.sourceCurrency} `}${rate}`;
+  const currencies: Record<string, { symbol: string; suffix?: boolean }> = {
+    NGN: { symbol: "₦" }, CAD: { symbol: "C$" }, USD: { symbol: "US$" }, GBP: { symbol: "£" }, EUR: { symbol: "€" }, USDT: { symbol: "USDT", suffix: true },
+  };
+  const source = currencies[quote.sourceCurrency] ?? { symbol: quote.sourceCurrency, suffix: true };
+  const target = currencies[quote.targetCurrency] ?? { symbol: quote.targetCurrency, suffix: true };
+  const raw = Number(quote.indicativeCustomerRate);
+  if (!Number.isFinite(raw) || raw <= 0) return quote.indicativeCustomerRate;
+  const unit = (currency: { symbol: string; suffix?: boolean }) => currency.suffix ? `1 ${currency.symbol}` : `${currency.symbol}1`;
+  const amount = (currency: { symbol: string; suffix?: boolean }, value: number) => {
+    const formatted = new Intl.NumberFormat("en-CA", { maximumFractionDigits: 2 }).format(value);
+    return currency.suffix ? `${formatted} ${currency.symbol}` : `${currency.symbol}${formatted}`;
+  };
+  return raw >= 1 ? `${unit(target)} = ${amount(source, raw)}` : `${unit(source)} = ${amount(target, 1 / raw)}`;
 }

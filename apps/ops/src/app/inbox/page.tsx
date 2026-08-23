@@ -7,6 +7,8 @@ import { OpsNavigation } from "../../components/ops-navigation";
 import { BarrelInternalApiClient } from "../../lib/api-client";
 import { getAuthorizedOperator } from "../../lib/require-operator";
 
+export const dynamic = "force-dynamic";
+
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ page?: string; limit?: string }> }) {
   const result = await getAuthorizedOperator();
   if ("reason" in result) redirect(result.reason === "UNAUTHENTICATED" ? "/login" : "/login?error=not_authorized");

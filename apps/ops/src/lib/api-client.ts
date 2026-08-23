@@ -13,7 +13,7 @@ export type ConversationListItem = {
   targetCurrency: string | null;
   handoffRequestedAt: string | null;
 };
-export type ConversationListResponse = { conversations: ConversationListItem[]; page: { number: number; limit: number; total: number; hasMore: boolean } };
+export type ConversationListResponse = { conversations: ConversationListItem[]; summary: { total: number; automation: number; waitingForTeam: number; humanHandling: number }; page: { number: number; limit: number; total: number; hasMore: boolean } };
 export type ConversationDetailResponse = {
   conversation: {
     conversationId: string;
@@ -54,10 +54,12 @@ export class BarrelInternalApiClient {
   constructor(private readonly accessToken: string, private readonly fetchImpl: typeof fetch = fetch) {}
 
   async me(): Promise<OperatorIdentity> { return this.request<{ operator: OperatorIdentity }>("/api/internal/me").then((value) => value.operator); }
-  listConversations(input: { page?: number; limit?: number } = {}): Promise<ConversationListResponse> {
+  listConversations(input: { page?: number; limit?: number; order?: "priority" | "activity"; mode?: ConversationListItem["automationMode"] } = {}): Promise<ConversationListResponse> {
     const query = new URLSearchParams();
     if (input.page) query.set("page", String(input.page));
     if (input.limit) query.set("limit", String(input.limit));
+    if (input.order === "activity") query.set("order", "activity");
+    if (input.mode) query.set("mode", input.mode);
     return this.request(`/api/internal/conversations${query.size ? `?${query}` : ""}`);
   }
   getConversation(conversationId: string): Promise<ConversationDetailResponse> { return this.request(`/api/internal/conversations/${encodeURIComponent(conversationId)}`); }

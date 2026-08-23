@@ -32,12 +32,40 @@ describe("internal conversation read models", () => {
     const result = await listInternalConversations(new URLSearchParams("limit=2&page=1"));
     expect(result.conversations.map((item) => item.conversationId)).toEqual(["handoff", "human"]);
     expect(result.page).toEqual({ number: 1, limit: 2, total: 4, hasMore: true });
+    expect(result.summary).toEqual({ total: 4, automation: 2, waitingForTeam: 1, humanHandling: 1 });
     expect(result.conversations[0]).toEqual(expect.objectContaining({
       customer: { whatsappNumber: "15551234567", displayName: "Ada Okafor" },
       publicReference: "BRL-handoff", sourceCurrency: "NGN", targetCurrency: "USD",
     }));
     expect(JSON.stringify(result)).not.toContain("providerQuoteId");
     expect(JSON.stringify(result)).not.toContain("expectedMarginMinor");
+  });
+
+  it("can order all inquiries by latest activity for the dashboard", async () => {
+    findMany.mockResolvedValue([
+      conversation("handoff-old", "HANDOFF_PENDING", "2026-08-16T09:00:00Z", "CUSTOMER"),
+      conversation("bot-new", "BOT", "2026-08-16T12:00:00Z", "CUSTOMER"),
+      conversation("human-mid", "HUMAN", "2026-08-16T10:00:00Z", "CUSTOMER"),
+    ]);
+
+    const result = await listInternalConversations(new URLSearchParams("order=activity&limit=50"));
+
+    expect(result.conversations.map((item) => item.conversationId)).toEqual(["bot-new", "human-mid", "handoff-old"]);
+    expect(result.summary).toEqual({ total: 3, automation: 1, waitingForTeam: 1, humanHandling: 1 });
+  });
+
+  it("filters a clicked dashboard status without changing the overall counts", async () => {
+    findMany.mockResolvedValue([
+      conversation("bot", "BOT", "2026-08-16T12:00:00Z", "CUSTOMER"),
+      conversation("waiting", "HANDOFF_PENDING", "2026-08-16T11:00:00Z", "CUSTOMER"),
+      conversation("human", "HUMAN", "2026-08-16T10:00:00Z", "CUSTOMER"),
+    ]);
+
+    const result = await listInternalConversations(new URLSearchParams("order=activity&mode=BOT"));
+
+    expect(result.conversations.map((item) => item.conversationId)).toEqual(["bot"]);
+    expect(result.summary).toEqual({ total: 3, automation: 1, waitingForTeam: 1, humanHandling: 1 });
+    expect(result.page.total).toBe(1);
   });
 
   it("returns a chronological, customer-safe transcript and immutable quote snapshot", async () => {

@@ -78,8 +78,17 @@ export async function listInternalConversations(params: URLSearchParams) {
       },
     },
   });
-  const ordered = conversations.sort((a, b) => {
-    const rank = modeRank(a.automationMode) - modeRank(b.automationMode);
+  const requestedMode = params.get("mode");
+  const mode = requestedMode === "BOT" || requestedMode === "HANDOFF_PENDING" || requestedMode === "HUMAN" ? requestedMode : null;
+  const summary = {
+    total: conversations.length,
+    automation: conversations.filter((conversation) => conversation.automationMode === "BOT").length,
+    waitingForTeam: conversations.filter((conversation) => conversation.automationMode === "HANDOFF_PENDING").length,
+    humanHandling: conversations.filter((conversation) => conversation.automationMode === "HUMAN").length,
+  };
+  const orderByActivity = params.get("order") === "activity";
+  const ordered = conversations.filter((conversation) => !mode || conversation.automationMode === mode).sort((a, b) => {
+    const rank = orderByActivity ? 0 : modeRank(a.automationMode) - modeRank(b.automationMode);
     if (rank) return rank;
     const aActivity = activityAt(a, a.messages[0]?.createdAt ?? null).getTime();
     const bActivity = activityAt(b, b.messages[0]?.createdAt ?? null).getTime();
@@ -105,7 +114,11 @@ export async function listInternalConversations(params: URLSearchParams) {
       handoffRequestedAt: intent?.handoffRequestedAt?.toISOString() ?? null,
     };
   });
-  return { conversations: items, page: { number: page, limit, total: ordered.length, hasMore: start + items.length < ordered.length } };
+  return {
+    conversations: items,
+    summary,
+    page: { number: page, limit, total: ordered.length, hasMore: start + items.length < ordered.length },
+  };
 }
 
 export async function getInternalConversation(conversationId: string, params: URLSearchParams) {

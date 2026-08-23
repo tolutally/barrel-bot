@@ -8,8 +8,11 @@ export async function createSupabaseServerClient() {
   return createServerClient(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
       getAll: () => cookieStore.getAll(),
-      setAll: (values) => {
-        try { values.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch { /* Server Components cannot write cookies. */ }
+      setAll: (values, headers) => {
+        try {
+          values.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+          void headers;
+        } catch { /* Proxy refreshes cookies before Server Components render. */ }
       },
     },
   });

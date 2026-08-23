@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-type ControlState = "checking" | "unsupported" | "unavailable" | "disabled" | "enabled" | "blocked" | "error";
+type ControlState = "checking" | "unsupported" | "install_required" | "unavailable" | "disabled" | "enabled" | "testing" | "tested" | "blocked" | "error";
+
+function isIos(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isStandalone(): boolean {
+  return window.matchMedia("(display-mode: standalone)").matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+}
 
 function vapidKeyBytes(value: string): ArrayBuffer {
   const padded = `${value}${"=".repeat((4 - value.length % 4) % 4)}`.replace(/-/g, "+").replace(/_/g, "/");
@@ -33,12 +41,17 @@ export function PushNotificationControl() {
       setState("unavailable");
       return;
     }
+    if (isIos() && !isStandalone()) {
+      setState("install_required");
+      return;
+    }
     if (Notification.permission === "denied") {
       setState("blocked");
       return;
     }
-    navigator.serviceWorker.register("/service-worker.js", { scope: "/" })
+    navigator.serviceWorker.register("/service-worker.js", { scope: "/", updateViaCache: "none" })
       .then(async (registration) => {
+        await registration.update();
         const existing = await registration.pushManager.getSubscription();
         if (existing) {
           await saveSubscription(existing);
@@ -66,10 +79,25 @@ export function PushNotificationControl() {
     }
   };
 
+  const testAlert = async () => {
+    try {
+      setState("testing");
+      const response = await fetch("/api/push-subscriptions/test", { method: "POST" });
+      if (!response.ok) throw new Error("Unable to send test alert");
+      setState("tested");
+      window.setTimeout(() => setState("enabled"), 3500);
+    } catch {
+      setState("error");
+    }
+  };
+
   if (state === "checking") return <span className="push-status">Checking alerts…</span>;
-  if (state === "enabled") return <span className="push-status push-status--enabled">Alerts on</span>;
-  if (state === "unsupported") return <span className="push-status">Alerts unavailable in this browser</span>;
+  if (state === "enabled") return <button className="push-control push-control--enabled" onClick={testAlert} title="Send a test notification to this device">Alerts on · Test</button>;
+  if (state === "testing") return <span className="push-status">Sending test…</span>;
+  if (state === "tested") return <span className="push-status push-status--enabled">Test sent ✓</span>;
+  if (state === "unsupported") return <span className="push-status">Alerts unavailable</span>;
+  if (state === "install_required") return <span className="push-status" title="On iPhone, add Barrel Ops to your Home Screen before enabling notifications">Install app for alerts</span>;
   if (state === "unavailable") return null;
-  if (state === "blocked") return <span className="push-status">Allow notifications in iPhone Settings to enable alerts.</span>;
+  if (state === "blocked") return <span className="push-status" aria-label="Allow notifications in iPhone Settings to enable alerts">Alerts blocked</span>;
   return <button className="push-control" onClick={enable}>{state === "error" ? "Try alerts again" : "Enable alerts"}</button>;
 }

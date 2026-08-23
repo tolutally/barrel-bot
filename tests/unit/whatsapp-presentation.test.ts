@@ -18,9 +18,10 @@ describe("WhatsApp customer presentation", () => {
     expect(formatCustomerRate("NGN", "CAD", "1045.45")).toBe("C$1 = ₦1,045.45");
     expect(formatCustomerRate("CAD", "USD", "1.36986")).toBe("US$1 = C$1.37");
     expect(formatCustomerRate("NGN", "USD", "1520")).toBe("US$1 = ₦1,520");
-    expect(formatCustomerRate("USD", "CAD", "0.73")).toBe("C$1 = US$0.73");
+    expect(formatCustomerRate("USD", "CAD", "0.73")).toBe("US$1 = C$1.37");
     expect(formatCustomerRate("CAD", "USDT", "1.37")).toBe("1 USDT = C$1.37");
-    expect(formatCustomerRate("USDT", "CAD", "0.7299")).toBe("C$1 = 0.73 USDT");
+    expect(formatCustomerRate("USDT", "CAD", "0.7299")).toBe("1 USDT = C$1.37");
+    expect(formatCustomerRate("CAD", "NGN", "0.0010284")).toBe("C$1 = ₦972.38");
   });
 
   it("keeps payment-purpose enum identifiers out of customer labels", () => {

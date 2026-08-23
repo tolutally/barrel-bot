@@ -23,8 +23,12 @@ export class OperatorMessageService {
       select: { id: true, automationMode: true, customerChannel: { select: { externalIdentifier: true } } },
     });
     if (!conversation) throw new OperatorMessageError("CONVERSATION_NOT_FOUND", 404);
-    if (conversation.automationMode !== "HUMAN") throw new OperatorMessageError("CONVERSATION_NOT_IN_HUMAN_MODE", 409);
+    if (conversation.automationMode === "BOT") throw new OperatorMessageError("CONVERSATION_NOT_IN_HUMAN_MODE", 409);
     if (!conversation.customerChannel?.externalIdentifier) throw new OperatorMessageError("MESSAGE_SEND_FAILED", 502);
+
+    if (conversation.automationMode === "HANDOFF_PENDING") {
+      await this.claimPendingHandoff(conversation.id, input.operatorId);
+    }
 
     let message: { id: string; externalMessageId: string | null; sentAt: Date | null; failedAt: Date | null };
     try {
@@ -82,6 +86,37 @@ export class OperatorMessageService {
       }),
     ]);
     return { externalMessageId: sent.messageId, sentAt, idempotent: false };
+  }
+
+  private async claimPendingHandoff(conversationId: string, operatorId: string): Promise<void> {
+    const at = this.now();
+    await this.db.$transaction(async (tx) => {
+      const claimed = await tx.conversation.updateMany({
+        where: { id: conversationId, automationMode: "HANDOFF_PENDING" },
+        data: { automationMode: "HUMAN", handoffStartedAt: at, lastOperatorActivityAt: at },
+      });
+      if (claimed.count === 0) {
+        const current = await tx.conversation.findUnique({ where: { id: conversationId }, select: { automationMode: true } });
+        if (current?.automationMode !== "HUMAN") {
+          throw new OperatorMessageError("CONVERSATION_NOT_IN_HUMAN_MODE", 409);
+        }
+        return;
+      }
+      await tx.tradeIntent.updateMany({
+        where: { conversationId, handoffState: { in: ["ALERT_PENDING", "FAILED"] } },
+        data: { handoffState: "HANDED_OFF", handedOffAt: at, assignedAdminRecipient: `operator:${operatorId}`, assignedAt: at },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorType: "STAFF",
+          actorId: operatorId,
+          action: "HUMAN_HANDOFF_CLAIMED",
+          entityType: "Conversation",
+          entityId: conversationId,
+          source: "CUSTOM_ADMIN",
+        },
+      });
+    });
   }
 }
 

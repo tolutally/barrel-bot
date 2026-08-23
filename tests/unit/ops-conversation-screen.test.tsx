@@ -40,4 +40,12 @@ describe("Ops conversation screen", () => {
     expect(html).not.toContain("Type a reply");
     expect(html).not.toContain("Finish conversation");
   });
+
+  it("shows takeover reply controls while the handoff is waiting for the team", () => {
+    const html = renderToStaticMarkup(<ConversationScreen initial={{ ...detail, conversation: { ...detail.conversation, automationMode: "HANDOFF_PENDING" } }} />);
+    expect(html).toContain("Waiting for team");
+    expect(html).toContain("Reply to take over this conversation");
+    expect(html).toContain("Take over &amp; send");
+    expect(html).toContain("Type a reply");
+  });
 });

@@ -21,13 +21,16 @@ function formatDecimal(value: Decimal, maximumPlaces = 4): string {
   return fraction ? `${grouped}.${fraction}` : grouped;
 }
 
-/** Formats Barrel's normalized source-units-per-one-target-unit rate without inversion. */
+/** Formats a normalized source-per-target rate using the more readable one-unit side. */
 export function formatCustomerRate(sourceCurrency: string, targetCurrency: string, normalizedSourcePerTargetRate: string): string {
   const rate = new Decimal(normalizedSourcePerTargetRate);
   if (!rate.isFinite() || rate.lte(0)) throw new Error("customer rate must be positive");
   const source = customerCurrencyMetadata(sourceCurrency);
   const target = customerCurrencyMetadata(targetCurrency);
-  const unit = target.code === "USDT" ? `1 ${target.code}` : `${target.symbol}1`;
-  const amount = source.code === "USDT" ? `${formatDecimal(rate, 2)} ${source.code}` : `${source.symbol}${formatDecimal(rate, 2)}`;
-  return `${unit} = ${amount}`;
+  const unit = (currency: CustomerCurrencyMetadata) => currency.code === "USDT" ? `1 ${currency.code}` : `${currency.symbol}1`;
+  const amount = (currency: CustomerCurrencyMetadata, value: Decimal) => currency.code === "USDT"
+    ? `${formatDecimal(value, 2)} ${currency.code}`
+    : `${currency.symbol}${formatDecimal(value, 2)}`;
+  if (rate.gte(1)) return `${unit(target)} = ${amount(source, rate)}`;
+  return `${unit(source)} = ${amount(target, new Decimal(1).div(rate))}`;
 }

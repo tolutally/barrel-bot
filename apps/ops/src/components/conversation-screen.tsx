@@ -19,6 +19,8 @@ export function ConversationScreen({ initial }: { initial: ConversationDetailRes
   const [isPending, startTransition] = useTransition();
   const keyRef = useRef<string | null>(null);
   const human = conversation.conversation.automationMode === "HUMAN";
+  const pendingHandoff = conversation.conversation.automationMode === "HANDOFF_PENDING";
+  const replyable = human || pendingHandoff;
   const quote = conversation.conversation.quote;
 
   function send() {
@@ -36,6 +38,7 @@ export function ConversationScreen({ initial }: { initial: ConversationDetailRes
       }
       setConversation((current) => ({
         ...current,
+        conversation: { ...current.conversation, automationMode: "HUMAN" },
         messages: [...current.messages, { senderType: "OPERATOR", contentType: "TEXT", textBody: body, createdAt: result.sentAt ?? new Date().toISOString(), sentAt: result.sentAt ?? new Date().toISOString(), deliveredAt: null, readAt: null, failedAt: null }],
       }));
       setText("");
@@ -62,7 +65,7 @@ export function ConversationScreen({ initial }: { initial: ConversationDetailRes
   return <section className="conversation-screen">
     <header className="conversation-header">
       <div><strong>{conversation.conversation.customer.displayName ?? conversation.conversation.customer.whatsappNumber ?? "Customer"}</strong><span>{conversation.conversation.handoff?.publicReference ?? quote?.publicReference ?? ""}</span></div>
-      <span className={`conversation-row__status conversation-row__status--${conversation.conversation.automationMode.toLowerCase()}`}>{human ? "Human handling" : "Automation on"}</span>
+      <span className={`conversation-row__status conversation-row__status--${conversation.conversation.automationMode.toLowerCase()}`}>{human ? "Human handling" : pendingHandoff ? "Waiting for team" : "Automation on"}</span>
     </header>
     {quote ? <section className="rate-context" aria-label="Indicative rate context"><p>{quote.sourceCurrency} → {quote.targetCurrency}</p><dl><div><dt>Customer sends</dt><dd>{quote.sourceAmount}</dd></div><div><dt>Indicative receive</dt><dd>{quote.indicativeTargetAmount}</dd></div><div><dt>Rate shown</dt><dd>{rateLabel(quote)}</dd></div></dl><small>Indicative rate</small></section> : null}
     <section className="transcript" aria-label="Transcript">
@@ -70,7 +73,7 @@ export function ConversationScreen({ initial }: { initial: ConversationDetailRes
         <span className="message__label">{messageLabel(message.senderType)}</span><p>{message.textBody ?? "Unsupported message"}</p><span className="message__meta">{timestamp(message.createdAt)}{messageStatus(message) ? ` · ${messageStatus(message)}` : ""}</span>
       </article>)}
     </section>
-    {human ? <section className="reply-area" aria-label="Human reply"><div className="quick-replies"><span>Quick replies</span><div>{QUICK_REPLIES.map((reply) => <button type="button" className="quick-replies__option" key={reply.label} onClick={() => chooseQuickReply(reply.text)} disabled={isPending}>{reply.label}</button>)}</div></div><textarea aria-label="Type a reply" value={text} onChange={(event) => { setText(event.target.value); if (keyRef.current) keyRef.current = null; }} placeholder="Type a reply..." maxLength={4096} disabled={isPending} /><button type="button" onClick={send} disabled={!text.trim() || isPending}>{isPending ? "Sending" : "Send"}</button>{sendError ? <p role="alert">{sendError} {sendError === "Message wasn't sent." ? <button type="button" onClick={send} disabled={isPending}>Try again</button> : null}</p> : null}</section> : null}
+    {replyable ? <section className="reply-area" aria-label="Human reply">{pendingHandoff ? <p><strong>Reply to take over this conversation.</strong></p> : null}<div className="quick-replies"><span>Quick replies</span><div>{QUICK_REPLIES.map((reply) => <button type="button" className="quick-replies__option" key={reply.label} onClick={() => chooseQuickReply(reply.text)} disabled={isPending}>{reply.label}</button>)}</div></div><textarea aria-label="Type a reply" value={text} onChange={(event) => { setText(event.target.value); if (keyRef.current) keyRef.current = null; }} placeholder="Type a reply..." maxLength={4096} disabled={isPending} /><button type="button" onClick={send} disabled={!text.trim() || isPending}>{isPending ? "Sending" : pendingHandoff ? "Take over & send" : "Send"}</button>{sendError ? <p role="alert">{sendError} {sendError === "Message wasn't sent." ? <button type="button" onClick={send} disabled={isPending}>Try again</button> : null}</p> : null}</section> : null}
     {human ? <section className="finish-area">{confirmFinish ? <div className="finish-confirm"><strong>Finish this conversation?</strong><p>Barrel will respond automatically the next time this customer asks for a rate.</p><button type="button" className="button-secondary" onClick={() => setConfirmFinish(false)} disabled={isPending}>Cancel</button><button type="button" onClick={finish} disabled={isPending}>Finish conversation</button></div> : <button type="button" className="button-secondary" onClick={() => setConfirmFinish(true)}>Finish conversation</button>}</section> : null}
   </section>;
 }
