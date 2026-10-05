@@ -22,7 +22,7 @@ export type ConversationDetailResponse = {
     handoff: { publicReference: string; state: string; tradeRequestStatus: string; requestedAt: string | null; handedOffAt: string | null; closedAt: string | null } | null;
     quote: { publicReference: string | null; sourceCurrency: string; targetCurrency: string; sourceAmount: string; indicativeTargetAmount: string; indicativeCustomerRate: string; quoteCreatedAt: string; customerRequestExpiresAt: string; indicative: true } | null;
   };
-  messages: Array<{ senderType: "CUSTOMER" | "BOT" | "OPERATOR" | "SYSTEM"; contentType: string; textBody: string | null; createdAt: string; sentAt: string | null; deliveredAt: string | null; readAt: string | null; failedAt: string | null }>;
+  messages: Array<{ senderType: "CUSTOMER" | "BOT" | "OPERATOR" | "SYSTEM"; contentType: string; textBody: string | null; createdAt: string; sentAt: string | null; deliveredAt: string | null; readAt: string | null; failedAt: string | null; attachment?: { kind: "IMAGE" | "DOCUMENT"; fileName: string; mimeType: string; byteSize: number | null; available: boolean; url: string | null; expiresAt: string } | null }>;
   messagePage: { limit: number; hasMore: boolean; nextBefore: string | null };
 };
 export type SendMessageResponse = { status: "sent"; idempotent: boolean; sentAt: string };
@@ -73,9 +73,10 @@ export class BarrelInternalApiClient {
   finishConversation(conversationId: string): Promise<{ status: "finished" }> { return this.request(`/api/internal/conversations/${encodeURIComponent(conversationId)}/finish`, { method: "POST" }); }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const hasJsonBody = Boolean(init.body) && !(init.body instanceof FormData);
     const response = await this.fetchImpl(apiUrl(path), {
       ...init,
-      headers: { Authorization: `Bearer ${this.accessToken}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
+      headers: { Authorization: `Bearer ${this.accessToken}`, ...(hasJsonBody ? { "Content-Type": "application/json" } : {}), ...init.headers },
       cache: "no-store",
     });
     if (!response.ok) throw new InternalApiError(response.status);

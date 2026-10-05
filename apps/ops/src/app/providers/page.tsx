@@ -6,6 +6,8 @@ import { ProviderCorridorTable } from "../../components/provider-corridor-table"
 import { BarrelInternalApiClient } from "../../lib/api-client";
 import { getAuthorizedOperator } from "../../lib/require-operator";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProvidersPage() {
   const result = await getAuthorizedOperator();
   if ("reason" in result) redirect(result.reason === "UNAUTHENTICATED" ? "/login" : "/login?error=not_authorized");

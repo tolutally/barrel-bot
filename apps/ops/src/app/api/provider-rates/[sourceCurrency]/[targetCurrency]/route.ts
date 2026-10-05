@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthorizedOperator } from "../../../../../lib/require-operator";
 
+export const dynamic = "force-dynamic";
+
 function apiUrl(path: string): URL {
   const base = process.env.BARREL_API_URL;
   if (!base) throw new Error("BARREL_API_URL is required");
@@ -14,5 +16,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sou
   const response = await fetch(apiUrl(`/api/internal/providers/corridors/${encodeURIComponent(sourceCurrency)}/${encodeURIComponent(targetCurrency)}/rate`), {
     headers: { Authorization: `Bearer ${auth.accessToken}` }, cache: "no-store",
   });
-  return new NextResponse(await response.text(), { status: response.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  return new NextResponse(await response.text(), { status: response.status, headers: {
+    "Content-Type": "application/json",
+    "Cache-Control": "private, no-store, no-cache, must-revalidate, max-age=0",
+    Expires: "0",
+    Pragma: "no-cache",
+  } });
 }

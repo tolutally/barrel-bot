@@ -27,7 +27,7 @@ function harness(mode: "HUMAN" | "HANDOFF_PENDING" | "BOT" = "HUMAN") {
     auditLog: { create: auditCreate },
     $transaction: transaction,
   };
-  const service = new OperatorMessageService(db as never, { sendText, sendInteractive: vi.fn(), sendList: vi.fn() }, () => new Date("2026-08-16T10:00:00Z"));
+  const service = new OperatorMessageService(db as never, { sendText, sendInteractive: vi.fn(), sendList: vi.fn(), downloadMedia: vi.fn(), uploadMedia: vi.fn(), sendImage: vi.fn(), sendDocument: vi.fn() }, () => new Date("2026-08-16T10:00:00Z"));
   return { service, sendText, conversationFindUnique, conversationUpdateMany, tradeIntentUpdateMany, messageCreate, messageFindUnique, messageUpdate, auditCreate, transaction };
 }
 

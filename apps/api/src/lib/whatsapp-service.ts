@@ -17,6 +17,7 @@ import {
 } from "@barrel/handoffs";
 import { createQuoteService } from "./quote-service";
 import { OperatorMessageService } from "./operator-message-service";
+import { InboundConversationMediaService } from "./conversation-media";
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
@@ -43,6 +44,7 @@ export function createWhatsAppServices() {
     notificationStatuses: new AdminNotificationStatusService(prisma),
     transcriptStatuses: conversations,
     operatorMessages: new OperatorMessageService(prisma, client),
+    inboundMedia: new InboundConversationMediaService(client),
     relay: new WhatsAppAdminReplyRelayService(prisma, client, recipients),
     handoffs,
     conversation: new ConversationService(

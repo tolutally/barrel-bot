@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ProviderCorridorsResponse, ProviderRateResponse } from "../lib/api-client";
 
 const FIAT_CURRENCIES = new Set(["NGN", "USD", "CAD", "GBP", "EUR"]);
@@ -21,6 +21,7 @@ export function ProviderCorridorTable({ data }: { data: ProviderCorridorsRespons
   const [rate, setRate] = useState<ProviderRateResponse | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
   const [rateError, setRateError] = useState<string | null>(null);
+  const rateRequest = useRef<AbortController | null>(null);
   const corridors = useMemo(() => data.corridors.filter((corridor) => {
     const currencies = [corridor.sourceCurrency, corridor.targetCurrency];
     if (!currencies.every((currency) => SUPPORTED_CURRENCIES.has(currency))) return false;
@@ -33,18 +34,27 @@ export function ProviderCorridorTable({ data }: { data: ProviderCorridorsRespons
   }), [data.corridors, filter, query]);
 
   async function selectCorridor(sourceCurrency: string, targetCurrency: string) {
+    rateRequest.current?.abort();
+    const controller = new AbortController();
+    rateRequest.current = controller;
     setSelected({ sourceCurrency, targetCurrency });
     setRate(null);
     setRateError(null);
     setRateLoading(true);
     try {
-      const response = await fetch(`/api/provider-rates/${encodeURIComponent(sourceCurrency)}/${encodeURIComponent(targetCurrency)}`, { cache: "no-store" });
+      const response = await fetch(`/api/provider-rates/${encodeURIComponent(sourceCurrency)}/${encodeURIComponent(targetCurrency)}?fresh=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+        signal: controller.signal,
+      });
       if (!response.ok) throw new RateRequestError(response.status);
-      setRate(await response.json() as ProviderRateResponse);
-    } catch {
+      const nextRate = await response.json() as ProviderRateResponse;
+      if (rateRequest.current === controller) setRate(nextRate);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       setRateError("We couldn't load a live rate. Try again.");
     } finally {
-      setRateLoading(false);
+      if (rateRequest.current === controller) setRateLoading(false);
     }
   }
 

@@ -32,6 +32,22 @@ export class TranscriptWhatsAppClient implements WhatsAppClient {
     return result;
   }
 
+  downloadMedia(mediaId: string): Promise<{ bytes: Uint8Array; mimeType: string }> {
+    return this.client.downloadMedia(mediaId);
+  }
+
+  uploadMedia(input: { bytes: Uint8Array; mimeType: string; fileName: string }): Promise<{ mediaId: string }> {
+    return this.client.uploadMedia(input);
+  }
+
+  sendImage(to: string, mediaId: string, caption?: string): Promise<{ messageId: string }> {
+    return this.client.sendImage(to, mediaId, caption);
+  }
+
+  sendDocument(to: string, mediaId: string, fileName: string, caption?: string): Promise<{ messageId: string }> {
+    return this.client.sendDocument(to, mediaId, fileName, caption);
+  }
+
   private async record(
     recipient: string,
     externalMessageId: string,

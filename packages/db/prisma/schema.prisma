@@ -155,6 +155,12 @@ enum ConversationMessageContentType {
   OTHER
 }
 
+enum ConversationAttachmentStatus {
+  READY
+  FAILED
+  EXPIRED
+}
+
 enum AdminNotificationType {
   NEW_TRADE_REQUEST
 }
@@ -469,10 +475,33 @@ model ConversationMessage {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
   operator     Operator?    @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+  attachment  ConversationMessageAttachment?
 
   @@index([conversationId, createdAt])
   @@unique([conversationId, idempotencyKey])
   @@index([operatorId])
+}
+
+model ConversationMessageAttachment {
+  id              String                       @id @default(cuid())
+  messageId       String                       @unique
+  status          ConversationAttachmentStatus @default(READY)
+  storageBucket   String
+  storagePath     String?
+  originalName    String
+  mimeType        String
+  byteSize        Int?
+  sha256          String?
+  metaMediaId     String?
+  failureCode     String?
+  deleteAfter     DateTime
+  deletedAt       DateTime?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+
+  message ConversationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([status, deleteAfter])
 }
 
 model CorridorConfig {

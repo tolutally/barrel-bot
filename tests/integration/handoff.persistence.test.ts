@@ -344,6 +344,7 @@ describe("TradeHandoffService Supabase persistence", () => {
       }),
       sendInteractive: vi.fn(async () => ({ messageId: "unused" })),
       sendList: vi.fn(async () => ({ messageId: "unused" })),
+      downloadMedia: vi.fn(), uploadMedia: vi.fn(), sendImage: vi.fn(), sendDocument: vi.fn(),
     };
     const relay = new WhatsAppAdminReplyRelayService(prisma, client, admins);
     const adminReply = {
@@ -419,6 +420,7 @@ describe("TradeHandoffService Supabase persistence", () => {
       }),
       sendInteractive: vi.fn(async () => ({ messageId: "unused" })),
       sendList: vi.fn(async () => ({ messageId: "unused" })),
+      downloadMedia: vi.fn(), uploadMedia: vi.fn(), sendImage: vi.fn(), sendDocument: vi.fn(),
     };
     const relay = new WhatsAppAdminReplyRelayService(prisma, client, [admin]);
 

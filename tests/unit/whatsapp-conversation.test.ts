@@ -82,6 +82,10 @@ function buildHarness(directions = [{ sourceCurrency: "NGN", targetCurrency: "CA
   };
   const sent: Array<{ kind: string; body: string; options?: unknown }> = [];
   const whatsApp: WhatsAppClient = {
+    downloadMedia: vi.fn(async () => ({ bytes: new Uint8Array(), mimeType: "image/jpeg" })),
+    uploadMedia: vi.fn(async () => ({ mediaId: "media-1" })),
+    sendImage: vi.fn(async () => ({ messageId: "image-1" })),
+    sendDocument: vi.fn(async () => ({ messageId: "document-1" })),
     sendText: vi.fn(async (_to, body) => { sent.push({ kind: "text", body }); return { messageId: "out-1" }; }),
     sendInteractive: vi.fn(async (_to, body, options) => { sent.push({ kind: "interactive", body, options }); return { messageId: "out-2" }; }),
     sendList: vi.fn(async (_to, body, _button, _section, options) => { sent.push({ kind: "list", body, options }); return { messageId: "out-3" }; }),

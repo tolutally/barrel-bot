@@ -92,4 +92,8 @@ export interface WhatsAppClient {
     sectionTitle: string,
     rows: InteractiveListRow[],
   ): Promise<{ messageId: string }>;
+  downloadMedia(mediaId: string): Promise<{ bytes: Uint8Array; mimeType: string }>;
+  uploadMedia(input: { bytes: Uint8Array; mimeType: string; fileName: string }): Promise<{ mediaId: string }>;
+  sendImage(to: string, mediaId: string, caption?: string): Promise<{ messageId: string }>;
+  sendDocument(to: string, mediaId: string, fileName: string, caption?: string): Promise<{ messageId: string }>;
 }

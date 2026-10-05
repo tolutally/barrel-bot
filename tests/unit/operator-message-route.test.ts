@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 const { requireOperator, send } = vi.hoisted(() => ({ requireOperator: vi.fn(), send: vi.fn() }));
 vi.mock("../../apps/api/src/lib/operator-auth", () => ({
   requireOperator,
@@ -32,5 +34,16 @@ describe("operator message route", () => {
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({ status: "sent", idempotent: false, sentAt: "2026-08-16T10:00:00.000Z" });
     expect(send).toHaveBeenCalledWith({ conversationId: "c1", operatorId: "operator-1", text: "Hi", idempotencyKey: "k" });
+  });
+
+  it("accepts one validated image with an optional caption", async () => {
+    requireOperator.mockResolvedValue({ operatorId: "operator-1" });
+    send.mockResolvedValue({ sentAt: new Date("2026-08-16T10:00:00Z"), externalMessageId: "wamid.image", idempotent: false });
+    const form = new FormData();
+    form.set("text", "Receipt");
+    form.set("attachment", new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "receipt.jpg", { type: "image/jpeg" }));
+    const response = await POST(new Request("http://localhost/api/internal/conversations/c1/messages", { method: "POST", headers: { "idempotency-key": "media-k" }, body: form }), { params: Promise.resolve({ conversationId: "c1" }) });
+    expect(response.status).toBe(201);
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ conversationId: "c1", operatorId: "operator-1", text: "Receipt", idempotencyKey: "media-k", attachment: expect.objectContaining({ mimeType: "image/jpeg", fileName: "receipt.jpg" }) }));
   });
 });

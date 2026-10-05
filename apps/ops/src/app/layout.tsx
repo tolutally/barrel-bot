@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { SessionLifecycle } from "../components/session-lifecycle";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,4 +26,4 @@ export const viewport: Viewport = {
   themeColor: "#153425",
   viewportFit: "cover",
 };
-export default function RootLayout({ children }: { children: ReactNode }) { return <html lang="en"><body>{children}</body></html>; }
+export default function RootLayout({ children }: { children: ReactNode }) { return <html lang="en"><body><SessionLifecycle />{children}</body></html>; }

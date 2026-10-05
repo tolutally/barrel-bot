@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@barrel/db";
 import { formatCurrencyMinor } from "@barrel/pricing";
+import { ConversationMediaStore } from "./conversation-media";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 50;
@@ -70,7 +71,7 @@ export async function listInternalConversations(params: URLSearchParams) {
           } },
         },
       },
-      messages: { select: { textBody: true, createdAt: true, senderType: true }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1 },
+      messages: { select: { textBody: true, contentType: true, createdAt: true, senderType: true, attachment: { select: { originalName: true } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1 },
       tradeIntents: {
         select: { publicReference: true, sourceCurrency: true, targetCurrency: true, handoffRequestedAt: true },
         orderBy: [{ handoffRequestedAt: "desc" }, { createdAt: "desc" }],
@@ -105,7 +106,7 @@ export async function listInternalConversations(params: URLSearchParams) {
         displayName: displayName(conversation.customerChannel?.customer ?? null),
       },
       automationMode: conversation.automationMode,
-      latestMessagePreview: preview(message?.textBody ?? null),
+      latestMessagePreview: preview(message?.textBody ?? (message?.contentType === "IMAGE" ? "Image" : message?.contentType === "DOCUMENT" ? `Document: ${message.attachment?.originalName ?? "attachment"}` : null)),
       latestMessageAt: message?.createdAt.toISOString() ?? null,
       latestMessageSenderType: message?.senderType ?? null,
       publicReference: intent?.publicReference ?? null,
@@ -153,6 +154,7 @@ export async function getInternalConversation(conversationId: string, params: UR
     select: {
       id: true, senderType: true, contentType: true, textBody: true, createdAt: true,
       sentAt: true, deliveredAt: true, readAt: true, failedAt: true,
+      attachment: { select: { status: true, storagePath: true, originalName: true, mimeType: true, byteSize: true, deleteAfter: true } },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
@@ -189,15 +191,28 @@ export async function getInternalConversation(conversationId: string, params: UR
         indicative: true,
       } : null,
     },
-    messages: segment.map((message) => ({
-      senderType: message.senderType,
-      contentType: message.contentType,
-      textBody: message.textBody,
-      createdAt: message.createdAt.toISOString(),
-      sentAt: message.sentAt?.toISOString() ?? null,
-      deliveredAt: message.deliveredAt?.toISOString() ?? null,
-      readAt: message.readAt?.toISOString() ?? null,
-      failedAt: message.failedAt?.toISOString() ?? null,
+    messages: await Promise.all(segment.map(async (message) => {
+      const available = message.attachment?.status === "READY" && message.attachment.deleteAfter > new Date() && Boolean(message.attachment.storagePath);
+      const url = available && message.attachment?.storagePath ? await new ConversationMediaStore().signedUrl(message.attachment.storagePath) : null;
+      return {
+        senderType: message.senderType,
+        contentType: message.contentType,
+        textBody: message.textBody,
+        createdAt: message.createdAt.toISOString(),
+        sentAt: message.sentAt?.toISOString() ?? null,
+        deliveredAt: message.deliveredAt?.toISOString() ?? null,
+        readAt: message.readAt?.toISOString() ?? null,
+        failedAt: message.failedAt?.toISOString() ?? null,
+        attachment: message.attachment ? {
+          kind: message.contentType === "DOCUMENT" ? "DOCUMENT" : "IMAGE",
+          fileName: message.attachment.originalName,
+          mimeType: message.attachment.mimeType,
+          byteSize: message.attachment.byteSize,
+          available: available && Boolean(url),
+          url,
+          expiresAt: message.attachment.deleteAfter.toISOString(),
+        } : null,
+      };
     })),
     messagePage: { limit, hasMore, nextBefore: hasMore ? cursorFor(segment[0]!) : null },
   };

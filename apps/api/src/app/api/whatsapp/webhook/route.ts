@@ -63,6 +63,21 @@ export async function POST(request: Request): Promise<Response> {
     }
     for (const message of accepted) {
       try {
+        if ((message.type === "image" || message.type === "document") && message.media) {
+          const conversationId = await services.inboundMedia.ingest({
+            from: message.from,
+            messageId: message.id,
+            mediaId: message.media.id,
+            mimeType: message.media.mimeType,
+            fileName: message.media.fileName,
+            caption: message.media.caption,
+            replyToExternalMessageId: message.contextMessageId,
+          });
+          await notifyOperatorsOfInboundMessage(conversationId);
+          await services.webhookEvents.markProcessed("META_WHATSAPP", message.id, new Date());
+          console.info(safeMessageMetadata(message.id, "whatsapp_media_processed"));
+          continue;
+        }
         const relay = await services.relay.handleInboundMessage(message);
         if (!relay.handled) {
           await services.conversation.handleInboundMessage({

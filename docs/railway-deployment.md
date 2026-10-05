@@ -35,4 +35,8 @@ Never add the database URL, Supabase secret key, Meta credentials, Juicyway key,
 4. Update `BARREL_API_URL` on Ops with the deployed API domain, then redeploy Ops.
 5. Open Ops over HTTPS on an iPhone, add it to the home screen, sign in, and tap **Enable alerts**.
 
+## Conversation media cleanup
+
+Create a third Railway service from the same repository using `/apps/api/railway.media-cleanup.toml`. Set `BARREL_API_URL` to the API domain and set the same strong `MEDIA_CLEANUP_SECRET` on both the API and cleanup services. The service runs daily at 03:15 UTC, removes private conversation attachments after 90 days, and exits.
+
 The API database migration command is safe to repeat: Prisma records applied migrations and only applies pending ones.

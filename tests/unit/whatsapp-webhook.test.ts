@@ -60,11 +60,17 @@ describe("Meta WhatsApp webhook boundary", () => {
 
   it("ignores status callbacks and unsupported message events", () => {
     expect(extractInboundMessages({ entry: [{ changes: [{ value: { statuses: [{ id: "status-1" }] } }] }] })).toEqual([]);
-    expect(
-      extractInboundMessages({
-        entry: [{ changes: [{ value: { messages: [{ id: "image-1", from: "100", type: "image" }] } }] }],
-      }),
-    ).toEqual([]);
+    expect(extractInboundMessages({ entry: [{ changes: [{ value: { messages: [{ id: "audio-1", from: "100", type: "audio" }] } }] }] })).toEqual([]);
+  });
+
+  it("extracts image and PDF metadata without treating captions as commands", () => {
+    expect(extractInboundMessages({ entry: [{ changes: [{ value: { messages: [
+      { id: "image-1", from: "100", type: "image", image: { id: "media-1", mime_type: "image/jpeg", caption: "Receipt" } },
+      { id: "doc-1", from: "100", type: "document", document: { id: "media-2", mime_type: "application/pdf", filename: "invoice.pdf" } },
+    ] } }] }] })).toEqual([
+      { id: "image-1", from: "100", text: "Receipt", type: "image", media: { id: "media-1", mimeType: "image/jpeg", caption: "Receipt" } },
+      { id: "doc-1", from: "100", text: "", type: "document", media: { id: "media-2", mimeType: "application/pdf", fileName: "invoice.pdf" } },
+    ]);
   });
 
   it("extracts Meta delivery and sanitized failure status callbacks", () => {

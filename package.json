@@ -26,7 +26,8 @@
     "db:seed": "prisma db seed --schema packages/db/prisma/schema.prisma",
     "test:db": "vitest run --config vitest.database.config.ts",
     "test:juicyway": "vitest run --config vitest.database.config.ts tests/integration/juicyway.sandbox.test.ts",
-    "test:whatsapp:production": "vitest run --config vitest.database.config.ts tests/integration/whatsapp.production.test.ts"
+    "test:whatsapp:production": "vitest run --config vitest.database.config.ts tests/integration/whatsapp.production.test.ts",
+    "media:cleanup": "node scripts/cleanup-conversation-media.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

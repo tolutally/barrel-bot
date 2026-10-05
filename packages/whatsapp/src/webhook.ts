@@ -4,10 +4,11 @@ export type InboundWhatsAppMessage = {
   id: string;
   from: string;
   text: string;
-  type: "text" | "interactive";
+  type: "text" | "interactive" | "image" | "document";
   commandText?: string;
   metadata?: Record<string, unknown>;
   contextMessageId?: string;
+  media?: { id: string; mimeType?: string; fileName?: string; caption?: string; sha256?: string };
 };
 
 export type InboundWhatsAppStatus = {
@@ -82,6 +83,25 @@ export function extractInboundMessages(payload: unknown): InboundWhatsAppMessage
                 interactiveId: selection,
                 ...(typeof title === "string" ? { interactiveTitle: title } : {}),
                 ...(typeof list?.description === "string" ? { interactiveDescription: list.description } : {}),
+              },
+              ...(contextMessageId ? { contextMessageId } : {}),
+            });
+          }
+        } else if (item.type === "image" || item.type === "document") {
+          const media = item[item.type] as { id?: unknown; mime_type?: unknown; filename?: unknown; caption?: unknown; sha256?: unknown } | undefined;
+          if (typeof media?.id === "string") {
+            const caption = typeof media.caption === "string" ? media.caption : undefined;
+            result.push({
+              id: item.id,
+              from: item.from,
+              text: caption ?? "",
+              type: item.type,
+              media: {
+                id: media.id,
+                ...(typeof media.mime_type === "string" ? { mimeType: media.mime_type } : {}),
+                ...(typeof media.filename === "string" ? { fileName: media.filename } : {}),
+                ...(caption ? { caption } : {}),
+                ...(typeof media.sha256 === "string" ? { sha256: media.sha256 } : {}),
               },
               ...(contextMessageId ? { contextMessageId } : {}),
             });

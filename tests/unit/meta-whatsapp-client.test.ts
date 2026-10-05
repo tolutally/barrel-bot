@@ -2,6 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 import { MetaWhatsAppClient, MetaWhatsAppSendError } from "@barrel/whatsapp";
 
 describe("MetaWhatsAppClient template delivery", () => {
+  it("downloads media through Meta's authenticated URL and sends uploaded images", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ url: "https://lookaside.example/media", mime_type: "image/jpeg" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ messages: [{ id: "wamid.image.1" }] }), { status: 200 }));
+    const client = new MetaWhatsAppClient({ accessToken: "secret", phoneNumberId: "phone-id", graphApiVersion: "v23.0" }, fetchMock);
+    await expect(client.downloadMedia("media-1")).resolves.toMatchObject({ mimeType: "image/jpeg" });
+    await expect(client.sendImage("15551234567", "media-1", "Receipt")).resolves.toEqual({ messageId: "wamid.image.1" });
+    expect(fetchMock.mock.calls[1]![1]?.headers).toMatchObject({ Authorization: "Bearer secret" });
+    expect(JSON.parse(String(fetchMock.mock.calls[2]![1]?.body))).toMatchObject({ type: "image", image: { id: "media-1", caption: "Receipt" } });
+  });
+
   it("uses the configured Barrel phone number for an exact operator text body", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ messages: [{ id: "wamid.operator.1" }] }), { status: 200 }));
     const client = new MetaWhatsAppClient(

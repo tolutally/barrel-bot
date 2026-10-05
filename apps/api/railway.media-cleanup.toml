@@ -1,0 +1,8 @@
+[build]
+builder = "RAILPACK"
+buildCommand = "npm ci"
+
+[deploy]
+startCommand = "npm run media:cleanup"
+cronSchedule = "15 3 * * *"
+restartPolicyType = "NEVER"

@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../apps/ops/src/app/inbox/[conversationId]/actions", () => ({ sendHumanReply: vi.fn(), finishHumanConversation: vi.fn() }));
@@ -14,6 +15,7 @@ const detail = {
   messages: [
     { senderType: "CUSTOMER" as const, contentType: "TEXT", textBody: "Okay, thanks.", createdAt: "2026-08-16T16:08:00Z", sentAt: null, deliveredAt: null, readAt: null, failedAt: null },
     { senderType: "OPERATOR" as const, contentType: "TEXT", textBody: "I’m checking.", createdAt: "2026-08-16T16:09:00Z", sentAt: "2026-08-16T16:09:00Z", deliveredAt: null, readAt: null, failedAt: null },
+    { senderType: "CUSTOMER" as const, contentType: "DOCUMENT", textBody: "Invoice", attachment: { kind: "DOCUMENT" as const, fileName: "invoice.pdf", mimeType: "application/pdf", byteSize: 2048, available: true, url: "https://storage.example/signed?token=1", expiresAt: "2026-11-14T16:10:00Z" }, createdAt: "2026-08-16T16:10:00Z", sentAt: null, deliveredAt: null, readAt: null, failedAt: null },
   ],
   messagePage: { limit: 50, hasMore: false, nextBefore: null },
 };
@@ -29,6 +31,10 @@ describe("Ops conversation screen", () => {
     expect(html).toContain("Indicative rate");
     expect(html).toContain("Customer");
     expect(html).toContain("Staff");
+    expect(html).toContain("invoice.pdf");
+    expect(html).toContain("View");
+    expect(html).toContain("Download");
+    expect(html).toContain("Attach image or PDF");
     expect(html).toContain("Type a reply");
     expect(html).toContain("Finish conversation");
     expect(html).not.toContain("Barrel specialist:");
