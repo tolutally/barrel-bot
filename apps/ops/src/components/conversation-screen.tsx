@@ -27,6 +27,7 @@ export function ConversationScreen({ initial }: { initial: ConversationDetailRes
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [isPending, startTransition] = useTransition();
   const keyRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const human = conversation.conversation.automationMode === "HUMAN";
   const pendingHandoff = conversation.conversation.automationMode === "HANDOFF_PENDING";
   const replyable = human || pendingHandoff;
@@ -83,7 +84,11 @@ export function ConversationScreen({ initial }: { initial: ConversationDetailRes
   function chooseAttachment(file: File | null) {
     setSendError("");
     keyRef.current = null;
-    if (!file) { setAttachment(null); return; }
+    if (!file) {
+      setAttachment(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     if (!ATTACHMENT_TYPES.has(file.type) || file.size === 0 || file.size > MAX_ATTACHMENT_BYTES) {
       setAttachment(null);
       setSendError("Choose a JPEG, PNG, WebP, or PDF up to 5 MB.");
@@ -105,7 +110,7 @@ export function ConversationScreen({ initial }: { initial: ConversationDetailRes
         {message.textBody ? <p>{message.textBody}</p> : !message.attachment ? <p>Unsupported message</p> : null}<span className="message__meta">{timestamp(message.createdAt)}{messageStatus(message) ? ` · ${messageStatus(message)}` : ""}</span>
       </article>)}
     </section>
-    {replyable ? <section className="reply-area" aria-label="Human reply">{pendingHandoff ? <p><strong>Reply to take over this conversation.</strong></p> : null}<div className="quick-replies"><span>Quick replies</span><div>{QUICK_REPLIES.map((reply) => <button type="button" className="quick-replies__option" key={reply.label} onClick={() => chooseQuickReply(reply.text)} disabled={isPending}>{reply.label}</button>)}</div></div><label className="attachment-picker"><span>{attachment ? attachment.name : "Attach image or PDF"}</span><input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => chooseAttachment(event.target.files?.[0] ?? null)} disabled={isPending} /></label>{attachment ? <button type="button" className="attachment-remove" onClick={() => chooseAttachment(null)} disabled={isPending}>Remove</button> : null}<textarea aria-label="Type a reply" value={text} onChange={(event) => { setText(event.target.value); if (keyRef.current) keyRef.current = null; }} placeholder={attachment ? "Add an optional caption..." : "Type a reply..."} maxLength={4096} disabled={isPending} /><button type="button" onClick={send} disabled={(!text.trim() && !attachment) || isPending}>{isPending ? "Sending" : pendingHandoff ? "Take over & send" : "Send"}</button>{sendError ? <p role="alert">{sendError} {sendError === "Message wasn't sent." ? <button type="button" onClick={send} disabled={isPending}>Try again</button> : null}</p> : null}</section> : null}
+    {replyable ? <section className="reply-area" aria-label="Human reply">{pendingHandoff ? <p><strong>Reply to take over this conversation.</strong></p> : null}<div className="quick-replies"><span>Quick replies</span><div>{QUICK_REPLIES.map((reply) => <button type="button" className="quick-replies__option" key={reply.label} onClick={() => chooseQuickReply(reply.text)} disabled={isPending}>{reply.label}</button>)}</div></div>{attachment ? <div className="attachment-selection"><span title={attachment.name}>{attachment.name}</span><small>{fileSize(attachment.size)}</small><button type="button" onClick={() => chooseAttachment(null)} disabled={isPending} aria-label={`Remove ${attachment.name}`}>×</button></div> : null}<div className="reply-composer"><label className="attachment-picker" title="Attach image or PDF" aria-label="Attach image or PDF"><svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path d="M8.5 12.5 14.9 6a3.5 3.5 0 0 1 5 5L11 20a6 6 0 0 1-8.5-8.5l9-9a4.5 4.5 0 0 1 6.4 6.4l-8.2 8.2a2.5 2.5 0 0 1-3.6-3.6l7.5-7.5" /></svg><span className="sr-only">Attach image or PDF</span><input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => chooseAttachment(event.target.files?.[0] ?? null)} disabled={isPending} /></label><textarea aria-label="Type a reply" value={text} onChange={(event) => { setText(event.target.value); if (keyRef.current) keyRef.current = null; }} placeholder={attachment ? "Add an optional caption..." : "Type a reply..."} maxLength={4096} disabled={isPending} /><button type="button" onClick={send} disabled={(!text.trim() && !attachment) || isPending}>{isPending ? "Sending" : pendingHandoff ? "Take over & send" : "Send"}</button></div>{sendError ? <p role="alert">{sendError} {sendError === "Message wasn't sent." ? <button type="button" onClick={send} disabled={isPending}>Try again</button> : null}</p> : null}</section> : null}
     {human ? <section className="finish-area">{confirmFinish ? <div className="finish-confirm"><strong>Finish this conversation?</strong><p>Barrel will respond automatically the next time this customer asks for a rate.</p><button type="button" className="button-secondary" onClick={() => setConfirmFinish(false)} disabled={isPending}>Cancel</button><button type="button" onClick={finish} disabled={isPending}>Finish conversation</button></div> : <button type="button" className="button-secondary" onClick={() => setConfirmFinish(true)}>Finish conversation</button>}</section> : null}
   </section>;
 }
